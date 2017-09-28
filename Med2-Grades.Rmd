@@ -64,7 +64,8 @@ ggplot(dfm[dfm$sem==2 & dfm$exam=="exam" & !(dfm$variable %in% c("pass", "fail")
 ```
 
 ## For courses
-Med2 module grade distributions in comparison to previous years (grey smoothed error bands indicating .95 confidence intervals of the percentage of students attaining that grade). Absolute numbers of attained grades are printed in black in the figure.
+Med2 module grade distributions in comparison to previous years (grey smoothed error bands indicating .95 confidence intervals of the percentage of students attaining that grade). 
+Absolute numbers of attained grades are printed in black in the four figures below.
 
 
 ```{r echo=FALSE,message=F, warning=F}
