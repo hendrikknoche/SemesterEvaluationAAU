@@ -62,6 +62,7 @@ dfx <- dfm %>%
   group_by_at(vars(one_of(columns))) %>%
   mutate(percent=value/sum(value))
 
+
 dfmp<-sqldf("select location, education, year, sem, course, exam,  sum(value) as total from dfm group by  location, education, year, sem, course, exam")
 dfm<-merge(dfm,dfmp,all.x = TRUE)
 dfm$percent<-dfm$value/dfm$total
