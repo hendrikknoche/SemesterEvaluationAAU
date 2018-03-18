@@ -81,7 +81,7 @@ ggplot(dfm[dfm$sem==2 & dfm$exam=="exam" & dfm$course=="P2" & !(dfm$variable %in
   geom_point(data=dfm[dfm$sem==2 & dfm$exam=="exam" & dfm$course=="P2" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
   geom_text(data=dfm[dfm$sem==2 & dfm$exam=="exam" & dfm$course=="P2" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+xlab("grades")
 
-
-
-
 str(dfm)
+
+
+                         
