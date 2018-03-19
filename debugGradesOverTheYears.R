@@ -14,9 +14,9 @@ EvenSems<-seq(2,10,by=2)
 
 file <- loadWorkbook("/Users/hendrik/OneDrive - Aalborg Universitet/semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx")
 fileName<-"/Users/hendrik/OneDrive - Aalborg Universitet/semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"
-df1 <- readColumns(getSheets(file)[[1]], startColumn = 1, endColumn = 24, startRow = 1, endRow = 78, header = T)
+df1 <- readColumns(getSheets(file)[[1]], startColumn = 1, endColumn = 24, startRow = 1, endRow = 79, header = T)
 df<-read.xlsx(fileName, sheetIndex=1, sheetName=NULL, rowIndex=NULL,
-              startRow=1, endRow=78, colIndex=seq(1:17),
+              startRow=1, endRow=79, colIndex=seq(1:17),
               as.data.frame=TRUE, header=TRUE, colClasses=NA,
               keepFormulas=FALSE, encoding="unknown",check.names=FALSE)
 
@@ -79,7 +79,7 @@ ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" & !(dfm$varia
   scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
 
 
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent,color=course))+
+ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent,color=course,shape=course))+
   theme_bw()+ ggtitle(paste("Comparison of modules on Med",semester,ThisYear,sep="")) +
   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
   scale_y_continuous(labels = scales::percent)+
