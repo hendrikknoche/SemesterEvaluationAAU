@@ -16,14 +16,16 @@ library(plyr)
 library(dplyr)
 library(sqldf)
 library(knitr)
-
+library(xtable)
 
 
 
 ThisYear<-"17/18" #school year
-numOfRowsToImport<-79
+numOfRowsToImport<-83
+numOfRowsEvalToImport<-65
+
+semester<-2
 OddSemester<-TRUE
-semester<-1
 show_semester2 <-FALSE; show_semester1 <-FALSE; 
 ifelse(semester==1,show_semester1<-TRUE,show_semester2<-TRUE)
 # show_semester2 <- TRUE
@@ -31,15 +33,29 @@ ifelse(semester==1,show_semester1<-TRUE,show_semester2<-TRUE)
 OddSems<-seq(1,9,by=2)
 EvenSems<-seq(2,10,by=2)
 
-file <- loadWorkbook("/Users/hendrik/OneDrive - Aalborg Universitet/semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx")
-fileName<-"/Users/hendrik/OneDrive - Aalborg Universitet/semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"
-df1 <- readColumns(getSheets(file)[[1]], startColumn = 1, endColumn = 24, startRow = 1, endRow = numOfRowsToImport, header = T)
+file <- loadWorkbook("/Users/hendrik/OneDrive - Aalborg Universitet/02 semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx")
+fileName<-"/Users/hendrik/OneDrive - Aalborg Universitet/02 semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"
+#df1 <- readColumns(getSheets(file)[[1]], startColumn = 1, endColumn = 24, startRow = 1, endRow = numOfRowsToImport, header = T)
 df<-read.xlsx(fileName, sheetIndex=1, sheetName=NULL, rowIndex=NULL,
               startRow=1, endRow=numOfRowsToImport, colIndex=seq(1:17),
               as.data.frame=TRUE, header=TRUE, colClasses=NA,
               keepFormulas=FALSE, encoding="unknown",check.names=FALSE)
 
+#read in the course evaluations
+dfe<-read.xlsx(fileName, sheetIndex=3, sheetName=NULL, rowIndex=NULL,
+              startRow=1, endRow=numOfRowsEvalToImport, colIndex=seq(1:11),
+              as.data.frame=TRUE, header=TRUE, colClasses=NA,
+              keepFormulas=FALSE, encoding="unknown",check.names=FALSE)
+
 dfm<-melt(df,id=c("location","education","year","sem","course","exam"))
+dfem<-melt(dfe,id=c("location","education","year","sem","course","item"))
+dfem$variable<-as.character(dfem$variable)
+dfem[dfem$variable=="very good",]$variable<-"1"
+dfem[dfem$variable=="good",]$variable<-"2"
+dfem[dfem$variable=="medium",]$variable<-"3"
+dfem[dfem$variable=="not so good",]$variable<-"4"
+dfem[dfem$variable=="not good",]$variable<-"5"
+dfem$variable<-as.numeric(dfem$variable)
 #identify courses that are pass/fail in a given year / careful later on if switches occur in study plan
 coursesWithPassFail<-sqldf("select distinct year, education, course from dfm where variable='I' and value>=-1")
 coursesWithPassFail$isPassFail<-TRUE
@@ -55,7 +71,10 @@ dfm<-dfm[((is.na(dfm$isPassFail) & !(dfm$variable %in% c('B','I')))) | (!(is.na(
 
 #dfm<-dfm[!is.na(dfm$value),]
 
+#replace empty entries with 0 and letters (EB,U,I,B) with numbers 
 dfm[is.na(dfm$value),]$value<-0
+ifelse(nrow(is.na(dfem$value)) >0,dfem[is.na(dfem$value),]$value<-0)
+
 dfm$variable<-as.character(dfm$variable)
 dfm[dfm$variable=="EB",]$variable<-"-5"
 dfm[dfm$variable=="U",]$variable<-"-4"
@@ -77,23 +96,30 @@ columns = names(dfm)[seq(1:6)]
 
 #colu = names(data)[-3]
 
-dfx <- dfm %>%
-  group_by_at(vars(one_of(columns))) %>%
-  mutate(percent=value/sum(value))
-
+# dfx <- dfm %>%
+#   group_by_at(vars(one_of(columns))) %>%
+#   mutate(percent=value/sum(value))
 
 dfmp<-sqldf("select location, education, year, sem, course, exam,  sum(value) as total from dfm group by  location, education, year, sem, course, exam")
+dfemp<-sqldf("select location, education, year, sem, course, item,  sum(value) as total from dfem group by  location, education, year, sem, course, item")
+
 dfm<-merge(dfm,dfmp,all.x = TRUE)
-dfm$percent<-dfm$value/dfm$total
+dfem<-merge(dfem,dfemp,all.x = TRUE)
+
+dfm$percent<-round(dfm$value/dfm$total,digits=2)
+dfem$percent<-round(dfem$value/dfem$total,digits = 2)
+MaxGradesPercentYear<-ceiling(max(dfm[dfm$year==ThisYear & dfm$exam=="exam" & dfm$sem==semester,]$percent)*10)/10+0.1
+MaxQualPercentYear<-ceiling(max(dfem[dfem$year==ThisYear & dfem$exam=="quality" & dfem$sem==semester,]$percent)*10)/10+0.1
+
 dfm<-dfm[!is.na(dfm$variable),]
 
 
 ```
 
-## Grade distribution comparison across modules
+## Grade distribution comparison across modules ThisYear
 ```{r fig4, echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent,color=course,shape=course))+
-  theme_bw()+ ggtitle(paste("Comparison of modules on Med2",ThisYear)) +
+  theme_bw()+ ggtitle(paste("Grade distribution comparison on Med2",ThisYear)) +
   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
   scale_y_continuous(labels = scales::percent)+
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
@@ -102,9 +128,20 @@ scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), brea
 
 ```
 
+```{r fig4a, echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
+ggplot(dfem[dfem$sem==semester & dfm$item=="quality" ,],aes(x=variable,y=percent,color=course,shape=course))+
+  theme_bw()+ ggtitle(paste("Course evaluation on Med2",ThisYear)) +
+  geom_line(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$year  ==ThisYear ,])+ 
+  scale_y_continuous(labels = scales::percent)+
+  geom_point(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$year  ==ThisYear ,])+ scale_x_reverse(labels=c("bad","not so good","average","good","very good"), breaks = c(5,4,3,2,1))+xlab("quality of course")
+
+```
+
+
+
 ```{r fig8, echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester1}
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" ,],aes(x=variable,y=percent,color=course,shape=course))+
-  theme_bw()+ ggtitle(paste("Comparison of modules on Med1 ",ThisYear)) +
+  theme_bw()+ ggtitle(paste("Grade distribution comparison on Med1 ",ThisYear)) +
   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam"  & dfm$year  ==ThisYear ,])+ 
   scale_y_continuous(labels = scales::percent)+
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$year  ==ThisYear ,])+
@@ -113,29 +150,31 @@ scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), brea
 ```
 
 
-## For courses
-Med2 module grade distributions in comparison to previous years (grey smoothed error bands indicating .95 confidence intervals of the percentage of students attaining that grade). 
-Absolute numbers of attained grades are printed in black in the four figures below.
+<!-- courses<-ifelse(semester==1,c("AVS","GPRO/IP","PBL","P1"),c("PI","MMA","ID","P2")) -->
+<!-- coursesLong<-ifelse(semester==1,c("Audio-Visual Sketching","Introduction to Programming (GPRO)","PBL","P1 project""),c("Programming for Interaction","Mathematics for Multimedia Applications","Interaction Design","P2 project")) -->
+## Grade distributions of modules and comparison with recent years
+Med2 module grade distributions and evaluations in comparison to previous years (grey smoothed error bands indicating .95 confidence intervals of the percentage of students attaining that grade or providing that rating). 
+Absolute numbers of attained grades or ratings are printed in black in the figures below.
 
 
 ```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
-nrow(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" & !(dfm$variable %in% c("pass", "fail")) ,])
+# courses<-ifelse(semester==1,c("AVS","GPRO/IP","PBL","P1"),c("PI","MMA","ID","P2"))
+# coursesLong<-ifelse(semester==1,c("Audio-Visual Sketching","Introduction to Programming (GPRO)","PBL","P1 project"),c("Programming for Interaction","Mathematics for Multimedia Applications","Interaction Design","P2 project"))
+# 
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
-  theme_bw()+ ggtitle("Programming for Interaction (PI)") +
+  theme_bw()+ ggtitle("Programming for Interaction") +
   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
   geom_smooth(se=TRUE)+ 
   scale_y_continuous(labels = scales::percent)+
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
   geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
 scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
-
-
-
 ```
 
 ```{r table1, echo=FALSE,message=F, warning=F, results='asis',eval=show_semester2}
 library(xtable)
-print(xtable(df[df$sem==semester & df$course=="PI" & df$exam=="exam" & df$year  ==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0,0)),include.rownames=FALSE,comment=FALSE)
+options(xtable.comment = FALSE)
+print(xtable(df[df$sem==semester & df$course=="PI" & df$exam=="exam" & df$year==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0),include.rownames=FALSE,comment=FALSE))
 
 #knitr::opts_chunk$set(echo = TRUE, fig.align="right")
 #![](MED2A.tiff) 
@@ -143,14 +182,58 @@ print(xtable(df[df$sem==semester & df$course=="PI" & df$exam=="exam" & df$year  
 ```
 
 ```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="MMA" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
-  theme_bw()+ ggtitle("Mathematics for Multimedia Applications (MMA)") +
-  geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="MMA" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
-  geom_smooth(se=TRUE)+scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
-+ scale_y_continuous(labels = scales::percent)+
+ggplot(dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="PI",],aes(x=variable,y=percent))+
+  theme_bw()+ 
+  geom_line(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="PI" & dfem$year  ==ThisYear ,])+ 
+  geom_smooth(se=TRUE)+   scale_y_continuous(labels = scales::percent)+
+  geom_point(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="PI"& dfem$year  ==ThisYear ,])+
+  geom_text(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="PI" & dfem$year ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
+scale_x_reverse(labels=c("bad","not so good","average","good","very good"), breaks = c(5,4,3,2,1))+xlab("quality of course")+ylab("percentage of responses")
+
+```
+
+<!-- ```{r table1, echo=FALSE,message=F, warning=F, results='asis',eval=show_semester2} -->
+
+
+
+<!-- #knitr::opts_chunk$set(echo = TRUE, fig.align="right") -->
+<!-- #![](MED2A.tiff) -->
+
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2} -->
+<!-- #nrow(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PI" & !(dfm$variable %in% c("pass", "fail")) ,]) -->
+
+<!-- ``` -->
+
+
+```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
+ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="MMA" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+ theme_bw()+ ggtitle("Mathematics for Multimedia Applications (MMA)") +   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="MMA" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
+  geom_smooth(se=TRUE)+scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades") + scale_y_continuous(labels = scales::percent)+
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="MMA" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
   geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="MMA" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+xlab("grades")
 ```
+
+```{r table2, echo=FALSE,message=F, warning=F, results='asis',eval=show_semester2}
+library(xtable)
+print(xtable(df[df$sem==semester & df$course=="MMA" & df$exam=="exam" & df$year  ==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0,0)),include.rownames=FALSE,comment=FALSE)
+
+#knitr::opts_chunk$set(echo = TRUE, fig.align="right")
+#![](MED2A.tiff) 
+
+```
+
+```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
+
+ggplot(dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="MMA",],aes(x=variable,y=percent))+
+  theme_bw()+ #ggtitle("Programming for Interaction (PI)") +
+  geom_line(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="MMA" & dfem$year  ==ThisYear ,])+ 
+  geom_smooth(se=TRUE)+   scale_y_continuous(labels = scales::percent,breaks = seq(0,MaxGradesPercentYear,0.1))+
+  geom_point(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="MMA" & dfem$year  ==ThisYear ,])+
+  geom_text(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="MMA" & dfem$year ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
+scale_x_reverse(labels=c("bad","not so good","average","good","very good"), breaks = c(5,4,3,2,1))+xlab("quality of course")+ylab("percentage of responses")
+```
+
 
 ```{r echo=FALSE,message=F,warning=FALSE, out.width = '80%',eval=show_semester2}
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="ID" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
@@ -162,58 +245,51 @@ ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="ID" & !(dfm$varia
   geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="ID" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+xlab("grades")
 ```
 
+```{r table3, echo=FALSE,message=F, warning=F, results='asis',eval=show_semester2}
+library(xtable)
+print(xtable(df[df$sem==semester & df$course=="ID" & df$exam=="exam" & df$year  ==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0,0)),include.rownames=FALSE,comment=FALSE)
+
+#knitr::opts_chunk$set(echo = TRUE, fig.align="right")
+#![](MED2A.tiff) 
+
+```
+
+```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
+ggplot(dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="ID",],aes(x=variable,y=percent))+
+  theme_bw()+ #ggtitle("Programming for Interaction (PI)") +
+  geom_line(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="ID" & dfem$year  ==ThisYear ,])+ 
+  geom_smooth(se=TRUE)+   scale_y_continuous(labels = scales::percent)+
+  geom_point(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="ID" & dfem$year  ==ThisYear ,])+
+  geom_text(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="ID" & dfem$year ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
+scale_x_reverse(labels=c("bad","not so good","average","good","very good"), breaks = c(5,4,3,2,1))+xlab("quality of course")+ylab("percentage of responses")
+```
 
 
 ```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P2" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
   theme_bw()+ ggtitle("P2 Project") +
   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P2" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
-  geom_smooth(se=TRUE)+scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
-+ scale_y_continuous(labels = scales::percent)+
+  geom_smooth(se=TRUE)+scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades") + scale_y_continuous(labels = scales::percent)+
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P2" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
   geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P2" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+xlab("grades")
+```
+
+```{r table4, echo=FALSE,message=F, warning=F, results='asis',eval=show_semester2}
+library(xtable)
+print(xtable(df[df$sem==semester & df$course=="P2" & df$exam=="exam" & df$year  ==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0,0)),include.rownames=FALSE,comment=FALSE)
+
+#knitr::opts_chunk$set(echo = TRUE, fig.align="right")
+#![](MED2A.tiff) 
 
 ```
-```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester1}
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="AVS" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
-  theme_bw()+ ggtitle("Audio-visual sketching (AVS)") +
-  geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="AVS" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
-  geom_smooth(se=TRUE)+ 
-  scale_y_continuous(labels = scales::percent)+
-  geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="AVS" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
-  geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="AVS" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
-  scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
-```
-<br>
-```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester1}
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="GPRO" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
-  theme_bw()+ ggtitle("Introduction to Programming (GPRO)") +
-  geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="GPRO" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
-  geom_smooth(se=TRUE)+ 
-  scale_y_continuous(labels = scales::percent)+
-  geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="GPRO" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
-  geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="GPRO" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
-  scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
+```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
 
+ggplot(dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="P2",],aes(x=variable,y=percent))+
+  theme_bw()+
+  geom_line(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="P2" & dfem$year  ==ThisYear ,])+ 
+  geom_smooth(se=TRUE)+   scale_y_continuous(labels = scales::percent)+
+  geom_point(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="P2" & dfem$year  ==ThisYear ,])+
+  geom_text(data=dfem[dfem$sem==semester & dfem$item=="quality" & dfem$course=="P2" & dfem$year ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
+scale_x_reverse(labels=c("bad","not so good","average","good","very good"), breaks = c(5,4,3,2,1))+xlab("quality of course")+ylab("percentage of responses")
 ```
-<br>
-```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester1}
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
-  theme_bw()+ ggtitle("PBL course (PV)") +
-  geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
-  geom_smooth(se=TRUE)+ 
-  scale_y_continuous(labels = scales::percent)+
-  geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
-  geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
-  scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
-```
-```{r echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester1}
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P1" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
-  theme_bw()+ ggtitle("Project (P1)") +
-  geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P1" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
-  geom_smooth(se=TRUE)+ 
-  scale_y_continuous(labels = scales::percent)+
-  geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P1" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
-  geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="P1" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
-  scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
-```
+
