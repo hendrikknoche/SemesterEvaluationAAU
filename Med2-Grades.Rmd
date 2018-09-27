@@ -174,7 +174,7 @@ scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), brea
 ```{r table1, echo=FALSE,message=F, warning=F, results='asis',eval=show_semester2}
 library(xtable)
 options(xtable.comment = FALSE)
-print(xtable(df[df$sem==semester & df$course=="PI" & df$exam=="exam" & df$year==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0),include.rownames=FALSE,comment=FALSE))
+print(xtable(df[df$sem==semester & df$course=="PI" & df$exam=="exam" & df$year==ThisYear,c(7:8,11:17)], type="latex", row.names = FALSE,digits=c(0,0,0,0,0,0,0,0,0,0),include.rownames=FALSE,comment=FALSE))
 
 #knitr::opts_chunk$set(echo = TRUE, fig.align="right")
 #![](MED2A.tiff) 
