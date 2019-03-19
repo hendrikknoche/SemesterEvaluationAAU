@@ -85,7 +85,7 @@ ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & !(dfm$variable %in% c("pass", 
   scale_y_continuous(labels = scales::percent)+
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
   #geom_text(data=dfm[dfm$sem==2 & dfm$exam=="exam" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
-  scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
+  scale_x_continuous(labels=c("EB","U","0/I","B"), breaks = c(-5,-4,,0,1))+xlab("grades")
 
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="AVS" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent))+
   theme_bw()+ ggtitle("Audio-visual sketching (AVS)") +
