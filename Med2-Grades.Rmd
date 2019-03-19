@@ -20,11 +20,11 @@ library(xtable)
 
 
 
-ThisYear<-"17/18" #school year
-numOfRowsToImport<-83
-numOfRowsEvalToImport<-65
+ThisYear<-"18/19" #school year
+numOfRowsToImport<-88
+numOfRowsEvalToImport<-75
+semester<-1
 
-semester<-2
 OddSemester<-TRUE
 show_semester2 <-FALSE; show_semester1 <-FALSE; 
 ifelse(semester==1,show_semester1<-TRUE,show_semester2<-TRUE)
@@ -115,7 +115,7 @@ dfm<-dfm[!is.na(dfm$variable),]
 
 
 ```
-
+browser()
 ## Grade distribution comparison across modules ThisYear
 ```{r fig4, echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
 ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent,color=course,shape=course))+

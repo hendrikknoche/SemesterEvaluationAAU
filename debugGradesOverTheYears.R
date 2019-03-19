@@ -6,7 +6,7 @@ library(dplyr)
 library(sqldf)
 library(knitr)
 
-ThisYear<-"17/18" #school year
+ThisYear<-"18/19" #school year
 OddSemester<-TRUE
 semester<-1
 OddSems<-seq(1,9,by=2)
