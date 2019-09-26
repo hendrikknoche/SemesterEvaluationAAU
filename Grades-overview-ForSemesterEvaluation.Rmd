@@ -21,9 +21,9 @@ library(xtable)
 
 
 ThisYear<-"18/19" #school year
-numOfRowsToImport<-88
-numOfRowsEvalToImport<-75
-semester<-1
+numOfRowsToImport<-92 #has to be exact
+numOfRowsEvalToImport<-81
+semester<-2
 
 OddSemester<-ifelse((semester%%2)==0,TRUE,FALSE)
 show_semester2 <-FALSE; show_semester1 <-FALSE; 
@@ -88,7 +88,7 @@ dfm<-dfm[dfm$variable!="pass" & dfm$variable!="fail",]
 # dfm[dfm$variable=="fail",]$variable<-"0"
 
 dfm$variable<-as.numeric(dfm$variable)
-
+dfm$value<-as.numeric(dfm$value)
 
 df[df$sem==semester & df$exam=="exam" & df$course=="PI",]
 
@@ -105,7 +105,6 @@ dfemp<-sqldf("select location, education, year, sem, course, item,  sum(value) a
 
 dfm<-merge(dfm,dfmp,all.x = TRUE)
 dfem<-merge(dfem,dfemp,all.x = TRUE)
-
 dfm$percent<-round(dfm$value/dfm$total,digits=2)
 dfem$percent<-round(dfem$value/dfem$total,digits = 2)
 MaxGradesPercentYear<-ceiling(max(dfm[dfm$year==ThisYear & dfm$exam=="exam" & dfm$sem==semester,]$percent)*10)/10+0.1
@@ -117,7 +116,7 @@ dfm<-dfm[!is.na(dfm$variable),]
 ```
 ## Grade distribution comparison across modules
 ```{r fig4, echo=FALSE,message=F, warning=F, out.width = '80%',eval=show_semester2}
-ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent,color=course,shape=course))+
+ggplot(dfm[dfm$sem==semester & dfm$item=="exam" & !(dfm$variable %in% c("pass", "fail")) ,],aes(x=variable,y=percent,color=course,shape=course))+
   theme_bw()+ ggtitle(paste("Grade distribution comparison on Med2",ThisYear)) +
   geom_line(data=dfm[dfm$sem==semester & dfm$exam=="exam" &  !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+ 
   scale_y_continuous(labels = scales::percent)+
