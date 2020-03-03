@@ -19,11 +19,10 @@ library(knitr)
 library(xtable)
 
 
-
-ThisYear<-"18/19" #school year
-numOfRowsToImport<-92 #has to be exact
-numOfRowsEvalToImport<-81
-semester<-2
+ThisYear<-"19/20" #school year
+numOfRowsToImport<-97 #has to be exact
+numOfRowsEvalToImport<-89
+semester<-1
 
 OddSemester<-ifelse((semester%%2)==0,TRUE,FALSE)
 show_semester2 <-FALSE; show_semester1 <-FALSE; 
