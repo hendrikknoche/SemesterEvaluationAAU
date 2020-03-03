@@ -6,14 +6,16 @@ library(dplyr)
 library(sqldf)
 library(knitr)
 
-ThisYear<-"18/19" #school year
+ThisYear<-"19/20" #school year
 OddSemester<-TRUE
 semester<-1
+numOfRowsToImport<-97 #has to be exact !!!! rows on the grade tab
+numOfRowsEvalToImport<-89 #has to be exact !!!! rows on the evaluation tab
 OddSems<-seq(1,9,by=2)
 EvenSems<-seq(2,10,by=2)
 
-file <- loadWorkbook("/Users/hendrik/OneDrive - Aalborg Universitet/semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx")
-fileName<-"/Users/hendrik/OneDrive - Aalborg Universitet/semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"
+file <- loadWorkbook("/Users/hendrik/OneDrive - Aalborg Universitet/02 semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx")
+fileName<-"/Users/hendrik/OneDrive - Aalborg Universitet/02 semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"
 df1 <- readColumns(getSheets(file)[[1]], startColumn = 1, endColumn = 24, startRow = 1, endRow = 79, header = T)
 df<-read.xlsx(fileName, sheetIndex=1, sheetName=NULL, rowIndex=NULL,
               startRow=1, endRow=79, colIndex=seq(1:17),
@@ -113,3 +115,4 @@ ggplot(dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" & !(dfm$varia
   geom_point(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,])+
   geom_text(data=dfm[dfm$sem==semester & dfm$exam=="exam" & dfm$course=="PV" & !(dfm$variable %in% c("pass", "fail")) & dfm$year  ==ThisYear ,],aes(label=value),hjust=.5, vjust=1.5)+ 
   scale_x_continuous(labels=c("EB","U","-3","0/I","B","2","4","7","10","12"), breaks = c(-5,-4,-3,0,1,2,4,7,10,12))+xlab("grades")
+
