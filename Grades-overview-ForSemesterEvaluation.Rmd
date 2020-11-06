@@ -17,12 +17,12 @@ library(dplyr)
 library(sqldf)
 library(knitr)
 library(xtable)
-
+library(here)
 
 ThisYear<-"19/20" #school year
-numOfRowsToImport<-97 #has to be exact
-numOfRowsEvalToImport<-89
-semester<-1
+numOfRowsToImport<-101 #has to be exact ---- usually ADD 4 for Med2 and 5 for Med1
+numOfRowsEvalToImport<-97  #has to be exact ---- usually ADD 4 for Med2 and 5 for Med1
+semester<-2
 
 OddSemester<-ifelse((semester%%2)==0,TRUE,FALSE)
 show_semester2 <-FALSE; show_semester1 <-FALSE; 
@@ -32,8 +32,8 @@ ifelse(semester==1,show_semester1<-TRUE,show_semester2<-TRUE)
 OddSems<-seq(1,9,by=2)
 EvenSems<-seq(2,10,by=2)
 
-file <- loadWorkbook("/Users/hendrik/OneDrive - Aalborg Universitet/02 semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx")
-fileName<-"/Users/hendrik/OneDrive - Aalborg Universitet/02 semester coordination/grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"
+# file <- loadWorkbook(here("data","grades exam Over The years Mea Med1 and 2 Medialogy.xlsx"))
+fileName<- here::here("data","gradesData_Med1_Med2.xlsx")
 #df1 <- readColumns(getSheets(file)[[1]], startColumn = 1, endColumn = 24, startRow = 1, endRow = numOfRowsToImport, header = T)
 df<-read.xlsx(fileName, sheetIndex=1, sheetName=NULL, rowIndex=NULL,
               startRow=1, endRow=numOfRowsToImport, colIndex=seq(1:17),
